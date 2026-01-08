@@ -23,7 +23,8 @@ public class KafkaConfig {
 
         JsonDeserializer<Transaction> jsonDeserializer = new JsonDeserializer<>(Transaction.class);
         jsonDeserializer.addTrustedPackages("*");
-        jsonDeserializer.ignoreTypeHeaders(); // Important for embedded Kafka tests
+        jsonDeserializer.setUseTypeHeaders(false);  // <-- ADD THIS LINE
+        jsonDeserializer.ignoreTypeHeaders(); // you can keep or remove, but setUseTypeHeaders(false) is stronger
 
         return new DefaultKafkaConsumerFactory<>(props, new StringDeserializer(), jsonDeserializer);
     }
