@@ -3,12 +3,17 @@ package com.jpmc.midascore;
 import com.jpmc.midascore.entity.TransactionRecord;
 import com.jpmc.midascore.entity.UserRecord;
 import com.jpmc.midascore.foundation.Transaction;
+import com.jpmc.midascore.foundation.Incentive;
 import com.jpmc.midascore.repository.TransactionRecordRepository;
 import com.jpmc.midascore.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestTemplate;
 
 @Component
 public class KafkaTransactionListener {
@@ -18,6 +23,9 @@ public class KafkaTransactionListener {
 
     @Autowired
     private TransactionRecordRepository transactionRecordRepository;
+
+    @Autowired
+    private RestTemplate restTemplate;
 
     @KafkaListener(topics = "${general.kafka-topic}", groupId = "midas-core")
     @Transactional
@@ -37,23 +45,36 @@ public class KafkaTransactionListener {
             return; // insufficient funds
         }
 
-        // Valid transaction
+        // Call the Incentives API
+        String url = "http://localhost:8080/incentive";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<Transaction> request = new HttpEntity<>(transaction, headers);
+
+        Incentive incentiveResponse = restTemplate.postForObject(url, request, Incentive.class);
+        float incentive = (incentiveResponse != null) ? incentiveResponse.getAmount() : 0.0f;
+
+        // Update balances
         sender.setBalance(sender.getBalance() - amount);
-        recipient.setBalance(recipient.getBalance() + amount);
+        recipient.setBalance(recipient.getBalance() + amount + incentive);
 
         userRepository.save(sender);
         userRepository.save(recipient);
 
-        TransactionRecord record = new TransactionRecord(sender, recipient, amount);
+        // Save record with incentive
+        TransactionRecord record = new TransactionRecord(sender, recipient, amount, incentive);
         transactionRecordRepository.save(record);
-        // === ADD THESE LINES TO VIEW WALDORF BALANCE ===
-        UserRecord waldorf = userRepository.findByName("waldorf");
-        if (waldorf != null) {
-            int flooredBalance = (int) Math.floor(waldorf.getBalance());
-            System.out.println(">>> WALDORF FINAL BALANCE (rounded down): " + flooredBalance);
+
+        // Print wilbur's balance after each transaction (last one is the final)
+                // ALWAYS print wilbur's current balance after every transaction (last one is final)
+        UserRecord wilbur = userRepository.findByName("wilbur");
+        if (wilbur != null) {
+            int floored = (int) Math.floor(wilbur.getBalance());
+            System.out.println(">>> WILBUR CURRENT BALANCE AFTER TRANSACTION (rounded down): " + floored);
         }
-        // =========================
-        // Optional: debug print
+
+        // Optional debug print
         System.out.println("Processed transaction of " + amount + " from " + sender.getName() + " to " + recipient.getName());
     }
 }

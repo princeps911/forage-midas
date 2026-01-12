@@ -19,17 +19,27 @@ public class TransactionRecord {
 
     private float amount;
 
-    // Default constructor required by JPA
+    private float incentive = 0.0f;  // <-- ADD THIS LINE
+
     public TransactionRecord() {}
 
-    // This is the one we need!
-    public TransactionRecord(UserRecord sender, UserRecord recipient, float amount) {
+    
+    public TransactionRecord(UserRecord sender, UserRecord recipient, float amount, float incentive) {
         this.sender = sender;
         this.recipient = recipient;
         this.amount = amount;
+        this.incentive = incentive;
     }
 
-    // Optional: getters if you want
+    // Add getter and setter
+    public float getIncentive() {
+        return incentive;
+    }
+
+    public void setIncentive(float incentive) {
+        this.incentive = incentive;
+    }
+    // Optional: getters if you want for transaction record details
     public long getId() { return id; }
     public UserRecord getSender() { return sender; }
     public UserRecord getRecipient() { return recipient; }
